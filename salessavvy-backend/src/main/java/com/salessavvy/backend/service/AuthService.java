@@ -1,0 +1,68 @@
+package com.salessavvy.backend.service;
+
+import com.salessavvy.backend.dto.RegisterRequest;
+import com.salessavvy.backend.dto.LoginRequest;
+import com.salessavvy.backend.entity.User;
+import com.salessavvy.backend.repository.UserRepository;
+import com.salessavvy.backend.security.JWTService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+
+import java.util.Map;
+
+@Service
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final JWTService jwtService;   // JWT injection
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    public AuthService(UserRepository userRepository, JWTService jwtService) {
+        this.userRepository = userRepository;
+        this.jwtService = jwtService;
+    }
+
+    // =========================
+    // REGISTER
+    // =========================
+    public User register(RegisterRequest request) {
+
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new RuntimeException("Username already exists");
+        }
+
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already exists");
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(request.getRole());
+
+        return userRepository.save(user);
+    }
+
+    // =========================
+    // LOGIN + JWT
+    // =========================
+    public Map<String, Object> login(LoginRequest request) {
+
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new RuntimeException("Invalid password");
+        }
+
+        // generate JWT
+        String token = jwtService.generateToken(user);
+
+        return Map.of(
+                "token", token,
+                "username", user.getUsername(),
+                "role", user.getRole().name()
+        );
+    }
+}

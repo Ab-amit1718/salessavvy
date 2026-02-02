@@ -1,0 +1,35 @@
+package com.salessavvy.backend.controller;
+
+import java.util.Map;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.salessavvy.backend.entity.User;
+import com.salessavvy.backend.service.OrderService;
+
+import jakarta.servlet.http.HttpServletRequest;
+
+@RestController
+@RequestMapping("/api/admin/orders")
+@CrossOrigin(origins = "http://localhost:5173")
+public class AdminOrderController {
+
+    private final OrderService orderService;
+
+    public AdminOrderController(OrderService orderService) {
+        this.orderService = orderService;
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getAllOrders(HttpServletRequest request) {
+
+        User user = (User) request.getAttribute("authenticatedUser");
+
+        if (user == null || user.getRole().name().equals("CUSTOMER")) {
+            return ResponseEntity.status(403).body(Map.of("error", "Forbidden"));
+        }
+
+        return ResponseEntity.ok(orderService.getAllOrdersForAdmin());
+    }
+}

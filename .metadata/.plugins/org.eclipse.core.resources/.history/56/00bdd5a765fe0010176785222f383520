@@ -1,0 +1,85 @@
+package com.salessavvy.backend.service;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.*;
+
+import org.springframework.stereotype.Service;
+
+import com.salessavvy.backend.dto.CreateOrderRequest;
+import com.salessavvy.backend.entity.*;
+import com.salessavvy.backend.repository.*;
+
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ProductRepository productRepository;
+
+    public OrderService(
+            OrderRepository orderRepository,
+            OrderItemRepository orderItemRepository,
+            ProductRepository productRepository
+    ) {
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.productRepository = productRepository;
+    }
+
+    public Map<String, Object> createOrder(User user, CreateOrderRequest request) {
+
+        Order order = new Order();
+        order.setOrderId(UUID.randomUUID().toString());
+        order.setUserId(user.getUserId());
+        order.setStatus(OrderStatus.PENDING);
+        order.setCreatedAt(LocalDateTime.now());
+
+        BigDecimal total = BigDecimal.ZERO;
+        List<OrderItem> items = new ArrayList<>();
+
+        for (CreateOrderRequest.Item itemReq : request.getItems()) {
+
+            Product product = productRepository.findById(itemReq.getProductId())
+                    .orElseThrow();
+
+            BigDecimal price = product.getPrice();
+            BigDecimal itemTotal =
+                    price.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+
+            total = total.add(itemTotal);
+
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setProductId(product.getProductId());
+            item.setQuantity(itemReq.getQuantity());
+            item.setPrice(price);
+            item.setTotal(itemTotal);
+
+            items.add(item);
+        }
+
+        order.setTotalAmount(total);
+        order.setOrderItems(items);
+
+        orderRepository.save(order);
+        orderItemRepository.saveAll(items);
+
+        return Map.of(
+                "orderId", order.getOrderId(),
+                "status", order.getStatus(),
+                "totalAmount", order.getTotalAmount()
+        );
+    }
+
+    public Map<String, Object> getOrders(User user) {
+
+        List<Order> orders = orderRepository.findByUserId(user.getUserId());
+
+        return Map.of(
+                "username", user.getUsername(),
+                "role", user.getRole(),
+                "orders", orders
+        );
+    }
+}

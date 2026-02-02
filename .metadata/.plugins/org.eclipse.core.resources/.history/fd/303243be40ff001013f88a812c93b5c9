@@ -1,0 +1,42 @@
+package com.salessavvy.backend.controller;
+
+
+
+import java.util.Map;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.salessavvy.backend.entity.OrderStatus;
+import com.salessavvy.backend.service.OrderService;
+
+@RestController
+@RequestMapping("/api/admin/orders")
+@CrossOrigin(origins = "http://localhost:5173")
+public class AdminOrderController {
+
+    private final OrderService orderService;
+
+    public AdminOrderController(OrderService orderService) {
+        this.orderService = orderService;
+    }
+
+    @GetMapping
+    public ResponseEntity<?> getAllOrders() {
+        return ResponseEntity.ok(orderService.getAllOrdersForAdmin());
+    }
+    @PatchMapping("/{orderId}/status")
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable String orderId,
+            @RequestParam OrderStatus status
+    ) {
+        orderService.updateOrderStatus(orderId, status);
+        return ResponseEntity.ok(Map.of(
+                "message", "Order status updated",
+                "orderId", orderId,
+                "status", status
+        ));
+    }
+
+}
+

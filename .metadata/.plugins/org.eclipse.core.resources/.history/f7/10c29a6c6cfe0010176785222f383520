@@ -1,0 +1,153 @@
+package com.salessavvy.backend.service;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.*;
+
+import org.springframework.stereotype.Service;
+
+import com.salessavvy.backend.dto.CreateOrderRequest;
+import com.salessavvy.backend.entity.*;
+import com.salessavvy.backend.repository.*;
+
+@Service
+public class OrderService {
+
+    private final OrderItemRepository orderItemRepository;
+    private final ProductRepository productRepository;
+    private final ProductImageRepository productImageRepository;
+    private final OrderRepository orderRepository;
+
+    public OrderService(OrderItemRepository orderItemRepository,
+                        ProductRepository productRepository,
+                        ProductImageRepository productImageRepository,
+                        OrderRepository orderRepository) {
+        this.orderItemRepository = orderItemRepository;
+        this.productRepository = productRepository;
+        this.productImageRepository = productImageRepository;
+        this.orderRepository = orderRepository;
+    }
+
+    // ============================
+    // CREATE ORDER
+    // ============================
+    public Map<String, Object> createOrder(User user, CreateOrderRequest request) {
+
+        Order order = new Order();
+        order.setOrderId(UUID.randomUUID().toString());
+        order.setUserId(user.getUserId());
+        order.setStatus(OrderStatus.PENDING);
+        order.setCreatedAt(LocalDateTime.now());
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        List<OrderItem> items = new ArrayList<>();
+
+        for (CreateOrderRequest.Item itemReq : request.getItems()) {
+
+            Product product = productRepository.findById(itemReq.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + itemReq.getProductId()));
+
+            BigDecimal price = BigDecimal.valueOf(product.getPrice());
+            BigDecimal itemTotal = price.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setProductId(product.getProductId());
+            item.setQuantity(itemReq.getQuantity());
+            item.setPricePerUnit(price);
+            item.setTotalPrice(itemTotal);
+
+            totalAmount = totalAmount.add(itemTotal);
+            items.add(item);
+        }
+
+        order.setTotalAmount(totalAmount);
+        order.setOrderItems(items);
+
+        orderRepository.save(order); // cascades orderItems
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("orderId", order.getOrderId());
+        response.put("status", order.getStatus().name());
+        response.put("totalAmount", order.getTotalAmount());
+
+        return response;
+    }
+
+    // ============================
+    // GET USER ORDERS
+    // ============================
+    public Map<String, Object> getUserOrders(User user) {
+
+        List<Order> orders = orderRepository.findByUserId(user.getUserId());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("username", user.getUsername());
+        response.put("role", user.getRole().name());
+
+        List<Map<String, Object>> orderList = new ArrayList<>();
+
+        for (Order order : orders) {
+
+            Map<String, Object> orderData = new HashMap<>();
+            orderData.put("orderId", order.getOrderId());
+            orderData.put("status", order.getStatus().name());
+            orderData.put("totalAmount", order.getTotalAmount());
+            orderData.put("createdAt", order.getCreatedAt());
+
+            List<Map<String, Object>> items = new ArrayList<>();
+
+            for (OrderItem item : order.getOrderItems()) {
+
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+
+                String imageUrl = null;
+                if (product != null) {
+                    List<ProductImage> images =
+                            productImageRepository.findByProduct_ProductId(product.getProductId());
+                    imageUrl = images.isEmpty() ? null : images.get(0).getImageUrl();
+                }
+
+                Map<String, Object> itemData = new HashMap<>();
+                itemData.put("productId", item.getProductId());
+                itemData.put("name", product != null ? product.getName() : null);
+                itemData.put("price", item.getPricePerUnit());
+                itemData.put("quantity", item.getQuantity());
+                itemData.put("total", item.getTotalPrice());
+                itemData.put("imageUrl", imageUrl);
+
+                items.add(itemData);
+            }
+
+            orderData.put("items", items);
+            orderList.add(orderData);
+        }
+
+        response.put("orders", orderList);
+
+        return response;
+    }
+ // ============================
+ // INTERNAL: MARK ORDER STATUS
+ // ============================
+ public void markOrderStatus(String orderId, OrderStatus status) {
+     Order order = orderRepository.findById(orderId)
+             .orElseThrow(() -> new RuntimeException("Order not found"));
+
+     order.setStatus(status);
+     order.setUpdatedAt(LocalDateTime.now());
+
+     orderRepository.save(order);
+ }
+ public void updateOrderStatus(String orderId, OrderStatus status) {
+
+	    Order order = orderRepository.findById(orderId)
+	            .orElseThrow(() -> new RuntimeException("Order not found"));
+
+	    order.setStatus(status);
+	    order.setUpdatedAt(java.time.LocalDateTime.now());
+
+	    orderRepository.save(order);
+	}
+
+}

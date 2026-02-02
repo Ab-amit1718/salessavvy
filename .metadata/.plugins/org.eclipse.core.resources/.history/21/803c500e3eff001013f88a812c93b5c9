@@ -1,0 +1,26 @@
+package com.salessavvy.backend.controller;
+
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import com.salessavvy.backend.entity.Order;
+import com.salessavvy.backend.repository.OrderRepository;
+
+@RestController
+@RequestMapping("/api/admin/orders")
+@CrossOrigin(origins = "http://localhost:5173")
+public class AdminOrderController {
+
+    private final OrderRepository orderRepository;
+
+    public AdminOrderController(OrderRepository orderRepository) {
+        this.orderRepository = orderRepository;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Order>> getAllOrders() {
+        return ResponseEntity.ok(orderRepository.findAll());
+    }
+}

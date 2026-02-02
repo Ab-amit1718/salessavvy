@@ -1,0 +1,5 @@
+package com.salessavvy.backend.dto;
+
+public class RegisterRequest {
+
+}

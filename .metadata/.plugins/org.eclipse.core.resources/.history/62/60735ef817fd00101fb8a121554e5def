@@ -1,0 +1,6 @@
+package com.salessavvy.backend.entity;
+
+public enum Role {
+    USER,
+    ADMIN
+}

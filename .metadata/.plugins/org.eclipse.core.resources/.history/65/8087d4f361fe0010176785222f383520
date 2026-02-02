@@ -1,0 +1,25 @@
+package com.salessavvy.backend.dto;
+
+import com.salessavvy.backend.entity.OrderStatus;
+
+public class UpdateOrderStatusRequest {
+
+    private OrderStatus status;
+
+    public UpdateOrderStatusRequest() {
+    }
+
+    public UpdateOrderStatusRequest(OrderStatus status) {
+        this.status = status;
+    }
+
+  
+    public void setStatus(OrderStatus status) {
+        this.status = status;
+    }
+
+	public OrderStatus getStatus() {
+		// TODO Auto-generated method stub
+		return status;
+	}
+}

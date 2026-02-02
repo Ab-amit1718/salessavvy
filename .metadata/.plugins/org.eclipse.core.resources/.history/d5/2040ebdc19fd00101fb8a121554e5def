@@ -1,0 +1,41 @@
+package com.salessavvy.backend.service;
+
+import com.salessavvy.backend.dto.RegisterRequest;
+import com.salessavvy.backend.entity.User;
+import com.salessavvy.backend.repository.UserRepository;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.stereotype.Service;
+
+@Service
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    public AuthService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+
+    public User register(RegisterRequest request) {
+
+        // basic validation
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+            throw new RuntimeException("Username already exists");
+        }
+
+        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+            throw new RuntimeException("Email already exists");
+        }
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+
+        // hash password
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+
+        user.setRole(request.getRole());
+
+        return userRepository.save(user);
+    }
+}

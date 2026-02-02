@@ -1,0 +1,21 @@
+# node
+node_modules/
+dist/
+.vite/
+
+# java / spring
+target/
+*.log
+
+# env
+.env
+.env.*
+
+# ide
+.idea/
+.vscode/
+*.iml
+
+# docker
+Dockerfile
+docker-compose.yml

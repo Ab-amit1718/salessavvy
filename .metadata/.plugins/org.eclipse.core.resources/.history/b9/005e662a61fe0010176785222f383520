@@ -1,0 +1,141 @@
+package com.salessavvy.backend.service;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.*;
+
+import org.jspecify.annotations.Nullable;
+import org.springframework.stereotype.Service;
+
+import com.salessavvy.backend.dto.CreateOrderRequest;
+import com.salessavvy.backend.entity.*;
+import com.salessavvy.backend.repository.*;
+
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final ProductRepository productRepository;
+    private final ProductImageRepository productImageRepository;
+
+    public OrderService(
+            OrderRepository orderRepository,
+            OrderItemRepository orderItemRepository,
+            ProductRepository productRepository,
+            ProductImageRepository productImageRepository
+    ) {
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
+        this.productRepository = productRepository;
+        this.productImageRepository = productImageRepository;
+    }
+
+    public Map<String, Object> createOrder(User user, CreateOrderRequest request) {
+
+        Order order = new Order();
+        order.setOrderId(UUID.randomUUID().toString());
+        order.setUserId(user.getUserId());
+        order.setStatus(OrderStatus.PENDING);
+        order.setCreatedAt(LocalDateTime.now());
+
+        BigDecimal totalAmount = BigDecimal.ZERO;
+        List<OrderItem> orderItems = new ArrayList<>();
+
+        for (CreateOrderRequest.ItemRequest itemReq : request.getItems()) {
+
+            Product product = productRepository.findById(itemReq.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + itemReq.getProductId()));
+
+            BigDecimal price = product.getPrice();
+            BigDecimal itemTotal = price.multiply(BigDecimal.valueOf(itemReq.getQuantity()));
+
+            OrderItem item = new OrderItem();
+            item.setOrder(order);
+            item.setProductId(product.getProductId());
+            item.setQuantity(itemReq.getQuantity());
+            item.setPricePerUnit(price);
+            item.setTotalPrice(itemTotal);
+
+            totalAmount = totalAmount.add(itemTotal);
+            orderItems.add(item);
+        }
+
+        order.setTotalAmount(totalAmount);
+        order.setOrderItems(orderItems);
+
+        orderRepository.save(order);
+        orderItemRepository.saveAll(orderItems);
+
+        return Map.of(
+                "orderId", order.getOrderId(),
+                "status", order.getStatus(),
+                "totalAmount", order.getTotalAmount()
+        );
+    }
+
+    public Map<String, Object> getUserOrders(User user) {
+
+        List<Order> orders = orderRepository.findByUserIdOrderByCreatedAtDesc(user.getUserId());
+        List<Map<String, Object>> orderList = new ArrayList<>();
+
+        for (Order order : orders) {
+
+            List<Map<String, Object>> items = new ArrayList<>();
+
+            for (OrderItem item : order.getOrderItems()) {
+
+                Product product = productRepository.findById(item.getProductId()).orElse(null);
+                String imageUrl = null;
+
+                if (product != null) {
+                    var images = productImageRepository.findByProduct_ProductId(product.getProductId());
+                    if (!images.isEmpty()) imageUrl = images.get(0).getImageUrl();
+                }
+
+                items.add(Map.of(
+                        "productId", item.getProductId(),
+                        "name", product != null ? product.getName() : null,
+                        "price", item.getPricePerUnit(),
+                        "quantity", item.getQuantity(),
+                        "total", item.getTotalPrice(),
+                        "imageUrl", imageUrl
+                ));
+            }
+
+            orderList.add(Map.of(
+                    "orderId", order.getOrderId(),
+                    "status", order.getStatus(),
+                    "totalAmount", order.getTotalAmount(),
+                    "createdAt", order.getCreatedAt(),
+                    "items", items
+            ));
+        }
+
+        return Map.of(
+                "username", user.getUsername(),
+                "role", user.getRole(),
+                "orders", orderList
+        );
+    }
+
+    public Map<String, Object> updateOrderStatus(String orderId, OrderStatus newStatus) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (order.getStatus() == OrderStatus.SUCCESS || order.getStatus() == OrderStatus.FAILED) {
+            throw new RuntimeException("Final state order cannot be modified");
+        }
+
+        order.setStatus(newStatus);
+        orderRepository.save(order);
+
+        return Map.of(
+                "orderId", order.getOrderId(),
+                "status", order.getStatus()
+        );
+    }
+
+	
+}
