@@ -42,20 +42,19 @@ Admin UI visible only for ADMIN role
 
 📂 Project Structure
 
-salessavvy/
-│
-├── salessavvy-backend/
-│   ├── src/main/java
-│   ├── src/main/resources
-│   └── pom.xml
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   ├── auth/
-│   │   ├── api/
-│   │   └── components/
-│   └── package.json
+
+salessavvy-backend/
+src/main/java
+src/main/resources
+pom.xml
+
+frontend/
+src/
+src/pages/
+src/auth/
+src/api/
+src/components/
+package.json
 
 ⚙️ Setup Instructions (Local)
 
